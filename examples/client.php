@@ -1,276 +1,178 @@
 <?php
 /**
- * PHP gRPC Client Example for Package Delivery Service
+ * PHP Client untuk Package Delivery API
  *
- * This example demonstrates how to interact with the Package Delivery gRPC server
- * from a PHP client application.
- *
- * Prerequisites:
- * - Install gRPC extension: pecl install grpc
- * - Install protobuf extension: pecl install protobuf
- * - Generate client stubs from proto files
+ * Client ini memanggil REST API (bukan gRPC langsung), cocok untuk Windows
+ * tanpa grpcurl. Pastikan Laravel server berjalan: php artisan serve
  *
  * Usage:
- * php examples/client.php
+ *   php examples/client.php
+ *
+ * Base URL default: http://127.0.0.1:8000/api
  */
 
-require_once __DIR__ . '/../vendor/autoload.php';
+$baseUrl = $argv[1] ?? 'http://127.0.0.1:8000/api';
 
-// Note: In a real implementation, you would include the generated protobuf classes
-// require_once __DIR__ . '/../app/Grpc/Generated/...';
-
-use Grpc\ChannelCredentials;
-
-class PackageDeliveryClient
+function httpRequest(string $method, string $url, ?array $body = null): array
 {
-    private $client;
+    $options = [
+        'http' => [
+            'method' => $method,
+            'header' => "Content-type: application/json\r\nAccept: application/json\r\n",
+            'ignore_errors' => true,
+        ],
+    ];
 
-    public function __construct(string $hostname = 'localhost:9001')
-    {
-        // Create gRPC client
-        // $this->client = new PackageDeliveryServiceClient(
-        //     $hostname,
-        //     ['credentials' => ChannelCredentials::createInsecure()]
-        // );
-
-        echo "Package Delivery gRPC Client\n";
-        echo "=============================\n\n";
-        echo "Server: {$hostname}\n\n";
+    if ($body !== null && in_array($method, ['POST', 'PATCH', 'PUT'])) {
+        $options['http']['content'] = json_encode($body);
     }
 
-    /**
-     * Example 1: Create a new package
-     */
-    public function exampleCreatePackage()
-    {
-        echo "Example 1: Creating a new package\n";
-        echo "-----------------------------------\n";
+    $context = stream_context_create($options);
+    $response = @file_get_contents($url, false, $context);
 
-        // In a real implementation:
-        // $request = new CreatePackageRequest();
-        // $request->setSenderName('John Doe');
-        // $request->setSenderAddress('123 Main St, City A');
-        // $request->setSenderPhone('+1234567890');
-        // $request->setRecipientName('Jane Smith');
-        // $request->setRecipientAddress('456 Oak Ave, City B');
-        // $request->setRecipientPhone('+0987654321');
-        // $request->setWeight(2.5);
-        // $request->setDescription('Books and documents');
-        // $request->setPackageType(PackageType::EXPRESS);
-        //
-        // list($response, $status) = $this->client->CreatePackage($request)->wait();
-        //
-        // if ($status->code === Grpc\STATUS_OK) {
-        //     echo "Package created successfully!\n";
-        //     echo "Tracking Number: " . $response->getTrackingNumber() . "\n";
-        // } else {
-        //     echo "Error: " . $status->details . "\n";
-        // }
-
-        echo "Request:\n";
-        echo "  Sender: John Doe, 123 Main St, City A, +1234567890\n";
-        echo "  Recipient: Jane Smith, 456 Oak Ave, City B, +0987654321\n";
-        echo "  Weight: 2.5 kg\n";
-        echo "  Type: EXPRESS\n\n";
-
-        echo "Expected Response:\n";
-        echo "  Tracking Number: PKG12345678\n";
-        echo "  Status: PENDING\n\n";
+    if ($response === false) {
+        return ['error' => 'Connection failed. Pastikan server berjalan: php artisan serve'];
     }
 
-    /**
-     * Example 2: Get package details
-     */
-    public function exampleGetPackage(string $trackingNumber = 'PKG12345678')
-    {
-        echo "Example 2: Getting package details\n";
-        echo "-----------------------------------\n";
+    $data = json_decode($response, true) ?? ['raw' => $response];
+    $code = $http_response_header[0] ?? '';
+    preg_match('/\d{3}/', $code, $matches);
+    $statusCode = (int) ($matches[0] ?? 0);
 
-        // In a real implementation:
-        // $request = new GetPackageRequest();
-        // $request->setTrackingNumber($trackingNumber);
-        //
-        // list($response, $status) = $this->client->GetPackage($request)->wait();
-        //
-        // if ($status->code === Grpc\STATUS_OK) {
-        //     echo "Package Details:\n";
-        //     echo "  Tracking Number: " . $response->getTrackingNumber() . "\n";
-        //     echo "  Status: " . PackageStatus::name($response->getStatus()) . "\n";
-        //     echo "  Sender: " . $response->getSenderName() . "\n";
-        //     echo "  Recipient: " . $response->getRecipientName() . "\n";
-        //     echo "  Current Location: " . $response->getCurrentLocation() . "\n";
-        // } else {
-        //     echo "Error: " . $status->details . "\n";
-        // }
+    return ['data' => $data, 'status' => $statusCode];
+}
 
-        echo "Request:\n";
-        echo "  Tracking Number: {$trackingNumber}\n\n";
-
-        echo "Expected Response:\n";
-        echo "  Full package details with tracking history\n\n";
+function printResult(array $result): void
+{
+    if (isset($result['error'])) {
+        echo "ERROR: {$result['error']}\n";
+        return;
     }
 
-    /**
-     * Example 3: Update package location
-     */
-    public function exampleUpdateLocation(string $trackingNumber = 'PKG12345678')
-    {
-        echo "Example 3: Updating package location\n";
-        echo "-------------------------------------\n";
+    $data = $result['data'] ?? [];
+    $status = $result['status'] ?? 0;
 
-        // In a real implementation:
-        // $request = new UpdateLocationRequest();
-        // $request->setTrackingNumber($trackingNumber);
-        // $request->setCurrentLocation('Distribution Center NYC');
-        // $request->setLocationDescription('Package arrived at NYC distribution center');
-        // $request->setStatus(PackageStatus::IN_TRANSIT);
-        //
-        // list($response, $status) = $this->client->UpdatePackageLocation($request)->wait();
-        //
-        // if ($status->code === Grpc\STATUS_OK) {
-        //     echo "Location updated successfully!\n";
-        //     echo "Current Location: " . $response->getCurrentLocation() . "\n";
-        //     echo "Status: " . PackageStatus::name($response->getStatus()) . "\n";
-        // } else {
-        //     echo "Error: " . $status->details . "\n";
-        // }
-
-        echo "Request:\n";
-        echo "  Tracking Number: {$trackingNumber}\n";
-        echo "  Location: Distribution Center NYC\n";
-        echo "  Description: Package arrived at NYC distribution center\n";
-        echo "  Status: IN_TRANSIT\n\n";
-
-        echo "Expected Response:\n";
-        echo "  Updated package with new location and status\n\n";
+    if ($status >= 400) {
+        echo "HTTP {$status}: " . ($data['error'] ?? json_encode($data)) . "\n";
+        return;
     }
 
-    /**
-     * Example 4: List packages with pagination
-     */
-    public function exampleListPackages(int $page = 1, int $perPage = 10)
-    {
-        echo "Example 4: Listing packages\n";
-        echo "---------------------------\n";
+    echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n";
+}
 
-        // In a real implementation:
-        // $request = new ListPackagesRequest();
-        // $request->setPage($page);
-        // $request->setPerPage($perPage);
-        // $request->setStatusFilter(PackageStatus::IN_TRANSIT);
-        //
-        // list($response, $status) = $this->client->ListPackages($request)->wait();
-        //
-        // if ($status->code === Grpc\STATUS_OK) {
-        //     echo "Total Packages: " . $response->getTotal() . "\n";
-        //     echo "Current Page: " . $response->getCurrentPage() . "\n";
-        //     echo "Last Page: " . $response->getLastPage() . "\n\n";
-        //
-        //     foreach ($response->getPackages() as $package) {
-        //         echo "- " . $package->getTrackingNumber() . " | ";
-        //         echo PackageStatus::name($package->getStatus()) . " | ";
-        //         echo $package->getCurrentLocation() . "\n";
-        //     }
-        // } else {
-        //     echo "Error: " . $status->details . "\n";
-        // }
+echo "\n";
+echo "========================================\n";
+echo "  Package Delivery API Client\n";
+echo "========================================\n";
+echo "Base URL: {$baseUrl}\n";
+echo "\n";
 
-        echo "Request:\n";
-        echo "  Page: {$page}\n";
-        echo "  Per Page: {$perPage}\n";
-        echo "  Filter: IN_TRANSIT\n\n";
+$menu = [
+    1 => 'Create Package',
+    2 => 'Get Package',
+    3 => 'List Packages',
+    4 => 'Update Location',
+    5 => 'Track Package',
+    6 => 'Cancel Package',
+    0 => 'Exit',
+];
 
-        echo "Expected Response:\n";
-        echo "  List of packages with pagination info\n\n";
+while (true) {
+    echo "\n--- Menu ---\n";
+    foreach ($menu as $key => $label) {
+        echo "  {$key}. {$label}\n";
+    }
+    echo "\nPilih (0-6): ";
+
+    $input = trim(fgets(STDIN) ?: '0');
+    $choice = (int) $input;
+
+    if ($choice === 0) {
+        echo "Bye!\n";
+        break;
     }
 
-    /**
-     * Example 5: Track package (server streaming)
-     */
-    public function exampleTrackPackage(string $trackingNumber = 'PKG12345678')
-    {
-        echo "Example 5: Tracking package (streaming)\n";
-        echo "----------------------------------------\n";
+    switch ($choice) {
+        case 1: // Create Package
+            echo "\n--- Create Package ---\n";
+            $body = [
+                'sender_name' => readInput('Sender name', 'John Doe'),
+                'sender_address' => readInput('Sender address', '123 Main St, Jakarta'),
+                'sender_phone' => readInput('Sender phone', '+6281234567890'),
+                'recipient_name' => readInput('Recipient name', 'Jane Smith'),
+                'recipient_address' => readInput('Recipient address', '456 Oak Ave, Bandung'),
+                'recipient_phone' => readInput('Recipient phone', '+6289876543210'),
+                'weight' => (float) readInput('Weight (kg)', '2.5'),
+                'description' => readInput('Description (optional)', 'Books'),
+                'package_type' => readInput('Type (STANDARD/EXPRESS/OVERNIGHT/FRAGILE/DOCUMENTS)', 'EXPRESS'),
+            ];
+            $result = httpRequest('POST', "{$baseUrl}/packages", $body);
+            printResult($result);
+            break;
 
-        // In a real implementation:
-        // $request = new TrackPackageRequest();
-        // $request->setTrackingNumber($trackingNumber);
-        //
-        // $stream = $this->client->TrackPackage($request);
-        //
-        // foreach ($stream->responses() as $update) {
-        //     echo "[" . $update->getTimestamp() . "] ";
-        //     echo $update->getLocation() . " - ";
-        //     echo $update->getDescription() . " (";
-        //     echo PackageStatus::name($update->getStatus()) . ")\n";
-        // }
-        //
-        // $status = $stream->getStatus();
-        // if ($status->code !== Grpc\STATUS_OK) {
-        //     echo "Error: " . $status->details . "\n";
-        // }
+        case 2: // Get Package
+            $tracking = readInput('Tracking number', '');
+            if (empty($tracking)) {
+                echo "Tracking number wajib diisi.\n";
+                break;
+            }
+            $result = httpRequest('GET', "{$baseUrl}/packages/" . urlencode($tracking));
+            printResult($result);
+            break;
 
-        echo "Request:\n";
-        echo "  Tracking Number: {$trackingNumber}\n\n";
+        case 3: // List Packages
+            $page = readInput('Page', '1');
+            $perPage = readInput('Per page', '10');
+            $statusFilter = readInput('Status filter (kosong=all, PENDING, IN_TRANSIT, dll)', '');
+            $url = "{$baseUrl}/packages?page={$page}&per_page={$perPage}";
+            if ($statusFilter !== '') {
+                $url .= "&status_filter=" . urlencode($statusFilter);
+            }
+            $result = httpRequest('GET', $url);
+            printResult($result);
+            break;
 
-        echo "Expected Response (streaming):\n";
-        echo "  [2024-01-01 10:00:00] Package Created - Package has been created (PENDING)\n";
-        echo "  [2024-01-01 14:30:00] Warehouse A - Package picked up (PICKED_UP)\n";
-        echo "  [2024-01-01 18:45:00] Distribution Center - In transit (IN_TRANSIT)\n";
-        echo "  ...\n\n";
-    }
+        case 4: // Update Location
+            echo "\n--- Update Location ---\n";
+            $body = [
+                'tracking_number' => readInput('Tracking number', ''),
+                'current_location' => readInput('Current location', 'Jakarta Distribution Center'),
+                'location_description' => readInput('Description', 'Package arrived at distribution center'),
+                'status' => readInput('Status (PICKED_UP, IN_TRANSIT, OUT_FOR_DELIVERY, DELIVERED)', 'IN_TRANSIT'),
+            ];
+            $result = httpRequest('PATCH', "{$baseUrl}/packages/location", $body);
+            printResult($result);
+            break;
 
-    /**
-     * Example 6: Cancel package
-     */
-    public function exampleCancelPackage(string $trackingNumber = 'PKG12345678')
-    {
-        echo "Example 6: Cancelling package\n";
-        echo "------------------------------\n";
+        case 5: // Track Package
+            $tracking = readInput('Tracking number', '');
+            if (empty($tracking)) {
+                echo "Tracking number wajib diisi.\n";
+                break;
+            }
+            $result = httpRequest('GET', "{$baseUrl}/packages/" . urlencode($tracking) . "/track");
+            printResult($result);
+            break;
 
-        // In a real implementation:
-        // $request = new CancelPackageRequest();
-        // $request->setTrackingNumber($trackingNumber);
-        // $request->setReason('Customer requested cancellation');
-        //
-        // list($response, $status) = $this->client->CancelPackage($request)->wait();
-        //
-        // if ($status->code === Grpc\STATUS_OK) {
-        //     echo "Package cancelled successfully!\n";
-        //     echo "Status: " . PackageStatus::name($response->getStatus()) . "\n";
-        // } else {
-        //     echo "Error: " . $status->details . "\n";
-        // }
+        case 6: // Cancel Package
+            echo "\n--- Cancel Package ---\n";
+            $body = [
+                'tracking_number' => readInput('Tracking number', ''),
+                'reason' => readInput('Reason', 'Customer requested cancellation'),
+            ];
+            $result = httpRequest('POST', "{$baseUrl}/packages/cancel", $body);
+            printResult($result);
+            break;
 
-        echo "Request:\n";
-        echo "  Tracking Number: {$trackingNumber}\n";
-        echo "  Reason: Customer requested cancellation\n\n";
-
-        echo "Expected Response:\n";
-        echo "  Package with CANCELLED status\n\n";
-    }
-
-    /**
-     * Run all examples
-     */
-    public function runAllExamples()
-    {
-        $this->exampleCreatePackage();
-        $this->exampleGetPackage();
-        $this->exampleUpdateLocation();
-        $this->exampleListPackages();
-        $this->exampleTrackPackage();
-        $this->exampleCancelPackage();
-
-        echo "\n";
-        echo "Note: This is a demonstration client showing the API structure.\n";
-        echo "To use with a real server:\n";
-        echo "1. Generate client stubs from proto files\n";
-        echo "2. Uncomment the implementation code\n";
-        echo "3. Ensure the gRPC server is running on localhost:9001\n";
+        default:
+            echo "Pilihan tidak valid.\n";
     }
 }
 
-// Run the examples
-$client = new PackageDeliveryClient();
-$client->runAllExamples();
+function readInput(string $prompt, string $default = ''): string
+{
+    $suffix = $default !== '' ? " [{$default}]" : '';
+    echo "{$prompt}{$suffix}: ";
+    $line = trim(fgets(STDIN) ?: '');
+    return $line !== '' ? $line : $default;
+}
