@@ -22,3 +22,16 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# RoadRunner
+/rr
+/rr.yaml.backup
+.rr.log
+
+# gRPC Generated files (optional - uncomment if you want to exclude)
+# /app/Grpc/Generated/*
+# !/app/Grpc/Generated/.gitkeep
+
+# Database
+/database/database.sqlite
+/database/database.sqlite-journal

@@ -1,0 +1,125 @@
+syntax = "proto3";
+
+package package_delivery;
+
+option php_namespace = "App\\Grpc\\Generated";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// Package Delivery Service
+service PackageDeliveryService {
+  // Create a new package for delivery
+  rpc CreatePackage(CreatePackageRequest) returns (PackageResponse);
+
+  // Get package details and current status
+  rpc GetPackage(GetPackageRequest) returns (PackageResponse);
+
+  // Update package location (for tracking)
+  rpc UpdatePackageLocation(UpdateLocationRequest) returns (PackageResponse);
+
+  // List all packages with pagination
+  rpc ListPackages(ListPackagesRequest) returns (ListPackagesResponse);
+
+  // Track package in real-time (server streaming)
+  rpc TrackPackage(TrackPackageRequest) returns (stream TrackingUpdate);
+
+  // Cancel a package delivery
+  rpc CancelPackage(CancelPackageRequest) returns (PackageResponse);
+}
+
+// Message definitions
+message CreatePackageRequest {
+  string sender_name = 1;
+  string sender_address = 2;
+  string sender_phone = 3;
+  string recipient_name = 4;
+  string recipient_address = 5;
+  string recipient_phone = 6;
+  double weight = 7; // in kg
+  string description = 8;
+  PackageType package_type = 9;
+}
+
+message GetPackageRequest {
+  string tracking_number = 1;
+}
+
+message UpdateLocationRequest {
+  string tracking_number = 1;
+  string current_location = 2;
+  string location_description = 3;
+  PackageStatus status = 4;
+}
+
+message ListPackagesRequest {
+  int32 page = 1;
+  int32 per_page = 2;
+  PackageStatus status_filter = 3; // optional filter
+}
+
+message ListPackagesResponse {
+  repeated PackageResponse packages = 1;
+  int32 total = 2;
+  int32 current_page = 3;
+  int32 last_page = 4;
+}
+
+message TrackPackageRequest {
+  string tracking_number = 1;
+}
+
+message TrackingUpdate {
+  string tracking_number = 1;
+  string location = 2;
+  string description = 3;
+  PackageStatus status = 4;
+  string timestamp = 5;
+}
+
+message CancelPackageRequest {
+  string tracking_number = 1;
+  string reason = 2;
+}
+
+message PackageResponse {
+  string tracking_number = 1;
+  string sender_name = 2;
+  string sender_address = 3;
+  string sender_phone = 4;
+  string recipient_name = 5;
+  string recipient_address = 6;
+  string recipient_phone = 7;
+  double weight = 8;
+  string description = 9;
+  PackageType package_type = 10;
+  PackageStatus status = 11;
+  string current_location = 12;
+  string created_at = 13;
+  string updated_at = 14;
+  repeated TrackingHistory tracking_history = 15;
+}
+
+message TrackingHistory {
+  string location = 1;
+  string description = 2;
+  PackageStatus status = 3;
+  string timestamp = 4;
+}
+
+// Enums
+enum PackageType {
+  STANDARD = 0;
+  EXPRESS = 1;
+  OVERNIGHT = 2;
+  FRAGILE = 3;
+  DOCUMENTS = 4;
+}
+
+enum PackageStatus {
+  PENDING = 0;
+  PICKED_UP = 1;
+  IN_TRANSIT = 2;
+  OUT_FOR_DELIVERY = 3;
+  DELIVERED = 4;
+  CANCELLED = 5;
+  FAILED = 6;
+}
